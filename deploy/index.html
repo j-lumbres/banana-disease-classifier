@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banana Disease Classifier</title>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/ort.min.js"></script>
+<style>
+  body { font-family: sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; }
+  img { max-width: 100%; margin-top: 1rem; border-radius: 8px; }
+  .row { margin-top: 0.6rem; }
+  .bar { background: #f5c518; height: 14px; border-radius: 7px; }
+  .label { font-size: 0.9rem; margin-bottom: 2px; }
+  .note { font-size: 0.85rem; color: #555; }
+</style>
+</head>
+<body>
+<h1>Banana Disease Classifier</h1>
+<p class="note">Trained on single bananas on a black background and on close-up leaf photos. Photos with busy backgrounds may be classified less reliably.</p>
+<p id="statusText">Loading model...</p>
+<input type="file" id="fileInput" accept="image/*" disabled>
+<img id="preview" alt="">
+<canvas id="canvas" width="224" height="224" hidden></canvas>
+<div id="results"></div>
+
+<script>
+const IMAGE_SIZE = 224;
+// Same normalization used during training
+const MEAN = [0.485, 0.456, 0.406];
+const STD = [0.229, 0.224, 0.225];
+
+const statusText = document.getElementById("statusText");
+const fileInput = document.getElementById("fileInput");
+const preview = document.getElementById("preview");
+const canvas = document.getElementById("canvas");
+const results = document.getElementById("results");
+
+let session;
+let classNames;
+
+async function loadModel() {
+  // One thread because multi-threading needs browser settings a Space page does not have
+  ort.env.wasm.numThreads = 1;
+  const response = await fetch("class_names.json");
+  classNames = await response.json();
+  session = await ort.InferenceSession.create("banana_mobilenet.onnx", { executionProviders: ["wasm"] });
+  statusText.textContent = "Model ready. Upload a banana photo.";
+  fileInput.disabled = false;
+}
+
+function imageToTensor(image) {
+  // Stretching to 224x224 matches the resize done when the training images were saved
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, IMAGE_SIZE, IMAGE_SIZE);
+  const pixels = context.getImageData(0, 0, IMAGE_SIZE, IMAGE_SIZE).data;
+
+  // Browser pixels are RGBA interleaved, the model wants channels-first (C, H, W)
+  const planeSize = IMAGE_SIZE * IMAGE_SIZE;
+  const data = new Float32Array(3 * planeSize);
+  for (let i = 0; i < planeSize; i++) {
+    for (let c = 0; c < 3; c++) {
+      data[c * planeSize + i] = (pixels[i * 4 + c] / 255 - MEAN[c]) / STD[c];
+    }
+  }
+  return new ort.Tensor("float32", data, [1, 3, IMAGE_SIZE, IMAGE_SIZE]);
+}
+
+async function classify(image) {
+  const output = await session.run({ image: imageToTensor(image) });
+  const scores = Array.from(output.scores.data);
+
+  // Softmax turns raw scores into probabilities (subtract max for numerical stability)
+  const maxScore = Math.max(...scores);
+  const exps = scores.map(function (s) { return Math.exp(s - maxScore); });
+  const total = exps.reduce(function (a, b) { return a + b; }, 0);
+  const probabilities = exps.map(function (e) { return e / total; });
+
+  const top3 = probabilities
+    .map(function (p, i) { return { name: classNames[i].replace(/_+/g, " ").replace(/\.$/, "").trim(), p: p }; })
+    .sort(function (a, b) { return b.p - a.p; })
+    .slice(0, 3);
+
+  results.innerHTML = "";
+  top3.forEach(function (item) {
+    const percent = (item.p * 100).toFixed(1);
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = '<div class="label">' + item.name + " (" + percent + '%)</div>' +
+                    '<div class="bar" style="width:' + percent + '%"></div>';
+    results.appendChild(row);
+  });
+}
+
+fileInput.addEventListener("change", function () {
+  const file = fileInput.files[0];
+  if (!file) return;
+  preview.onload = function () { classify(preview); };
+  preview.src = URL.createObjectURL(file);
+});
+
+loadModel().catch(function (error) {
+  statusText.textContent = "Could not load the model: " + error;
+});
+</script>
+</body>
+</html>

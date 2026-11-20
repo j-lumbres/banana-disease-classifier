@@ -1,0 +1,9 @@
+torch
+torchvision
+datasets
+huggingface_hub
+scikit-learn
+matplotlib
+onnx
+onnxruntime
+onnxscript
