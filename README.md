@@ -60,7 +60,7 @@ The images come from the gated Hugging Face dataset [Saon110/bd-crop-vegetable-p
 - `02_cleaned_finetune.ipynb` cleans the labels, fine-tunes MobileNetV2 in two stages (head only, then all layers), compares it with v1, and exports ONNX.
 - `deploy/` holds the static Space. `index.html` runs `banana_mobilenet.onnx` with ONNX Runtime Web, and `class_names.json` lists the 8 classes.
 
-Notebook 02 expects the v1 weights at `model_v1/banana_mobilenet.pth`. They are the first upload in the Hugging Face model repo history.
+Notebook 02 expects the v1 weights at `model_v1/banana_mobilenet.pth`. They are commit `baddb54` in the Hugging Face model repo history.
 
 ## Running
 
