@@ -70,3 +70,9 @@ python -m venv .venv
 ```
 
 Then run notebook 01 for the data, and notebook 02 for the fine-tuned model. Notebook 02 picks Apple's MPS backend when it is available and falls back to CUDA or CPU. On an Apple A18 Pro it trains in about 15 minutes.
+
+## License
+
+The code (notebooks, `deploy/index.html`, and the other source files) is released under the [MIT License](LICENSE).
+
+The trained model is not covered by the MIT License. `deploy/banana_mobilenet.onnx` and the PyTorch weights in the Hugging Face model repo were trained on [Saon110/bd-crop-vegetable-plant-disease-dataset](https://huggingface.co/datasets/Saon110/bd-crop-vegetable-plant-disease-dataset), which is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). The model files are therefore shared under the same license. They may be reused with credit to the dataset, for non-commercial purposes only, and derivatives must keep the same license.
